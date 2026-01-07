@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "test-tempo",
-    "slug": "test-tempo",
+    "slug": "vizinhoalert-rzi1z1",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,13 +9,18 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.autisyncsorganization.vizinhoalertrzi1z1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.autisyncsorganization.vizinhoalertrzi1z1"
     },
     "web": {
       "bundler": "metro",
@@ -38,6 +43,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e832e796-419a-4f34-8b2f-cf3babe9f390"
+      }
+    },
+    "owner": "autisyncs-organization"
   }
 }

@@ -1,12 +1,17 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { v4 as uuidv4 } from "uuid";
 import { Alert, AlertType, Vehicle, VehicleQR } from "@/types/alerts";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+// Centralized API base URL configuration
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://46.224.205.82:8000/api/v1";
 
-if (!API_BASE_URL) {
-  throw new Error(
-    "EXPO_PUBLIC_API_BASE_URL is not set. Please add it to your .env file or environment variables."
+// Mixed-content warning for web platform
+if (Platform.OS === "web" && API_BASE_URL.startsWith("http://")) {
+  console.warn(
+    "[VizinhoAlert] Mixed content warning: API is using HTTP but web preview requires HTTPS. " +
+    "API calls may be blocked by the browser. Mobile (Expo Go) will still work."
   );
 }
 
@@ -14,6 +19,15 @@ const DEVICE_ID_KEY = "@vizinhoalert:device_id";
 const JWT_TOKEN_KEY = "@vizinhoalert:jwt_token";
 const DEVICE_UUID_KEY = "@vizinhoalert:device_uuid";
 const PUSH_TOKEN_REGISTERED_KEY = "@vizinhoalert:push_token_registered";
+
+// Check if we're in a mixed-content situation
+function checkMixedContent(): void {
+  if (Platform.OS === "web" && API_BASE_URL.startsWith("http://")) {
+    console.warn(
+      "[VizinhoAlert] API request may fail due to mixed content (HTTPS page calling HTTP API)"
+    );
+  }
+}
 
 // Device ID management
 export async function getOrCreateDeviceId(): Promise<string> {
@@ -39,29 +53,43 @@ export async function registerDevice(
   latitude?: number,
   longitude?: number
 ): Promise<{ access_token: string; device_uuid: string }> {
-  const response = await fetch(`${API_BASE_URL}/auth/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      device_id: deviceId,
-      latitude,
-      longitude,
-    }),
-  });
+  checkMixedContent();
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        device_id: deviceId,
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Registration failed: ${response.status}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Registration failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Store JWT and device UUID
+    await AsyncStorage.setItem(JWT_TOKEN_KEY, data.access_token);
+    await AsyncStorage.setItem(DEVICE_UUID_KEY, data.device_uuid);
+
+    return data;
+  } catch (error) {
+    // Provide helpful error message for network errors (common with mixed-content)
+    if (Platform.OS === "web" && error instanceof TypeError && error.message.includes("Failed to fetch")) {
+      throw new Error(
+        "Device registration failed. This may be due to mixed content (HTTPS page calling HTTP API). " +
+        "The API works on mobile devices. For web, the API needs to use HTTPS."
+      );
+    }
+    throw error;
   }
-
-  const data = await response.json();
-
-  // Store JWT and device UUID
-  await AsyncStorage.setItem(JWT_TOKEN_KEY, data.access_token);
-  await AsyncStorage.setItem(DEVICE_UUID_KEY, data.device_uuid);
-
-  return data;
 }
 
 // Ensure authenticated - register if needed
@@ -85,33 +113,46 @@ async function authFetch(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<Response> {
+  checkMixedContent();
+  
   const token = await ensureAuthenticated();
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      ...options.headers,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  // If unauthorized, try to re-register
-  if (response.status === 401) {
-    await AsyncStorage.removeItem(JWT_TOKEN_KEY);
-    const newToken = await ensureAuthenticated();
-
-    return fetch(`${API_BASE_URL}${endpoint}`, {
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
         ...options.headers,
-        Authorization: `Bearer ${newToken}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
-  }
 
-  return response;
+    // If unauthorized, try to re-register
+    if (response.status === 401) {
+      await AsyncStorage.removeItem(JWT_TOKEN_KEY);
+      const newToken = await ensureAuthenticated();
+
+      return fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          ...options.headers,
+          Authorization: `Bearer ${newToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+    }
+
+    return response;
+  } catch (error) {
+    // Provide helpful error message for network errors (common with mixed-content)
+    if (Platform.OS === "web" && error instanceof TypeError && error.message.includes("Failed to fetch")) {
+      throw new Error(
+        "Network request failed. This may be due to mixed content (HTTPS page calling HTTP API). " +
+        "The API works on mobile devices. For web, the API needs to use HTTPS."
+      );
+    }
+    throw error;
+  }
 }
 
 // Alerts API
