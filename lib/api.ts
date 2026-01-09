@@ -4,14 +4,15 @@ import { v4 as uuidv4 } from "uuid";
 import { Alert, AlertType, Vehicle, VehicleQR } from "@/types/alerts";
 
 // Centralized API base URL configuration
+// IMPORTANT: Always use HTTPS in production via https://api.vizinhoalert.eu
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://46.224.205.82:8000/api/v1";
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://api.vizinhoalert.eu/api/v1";
 
-// Mixed-content warning for web platform
+// Verify HTTPS is being used in production
 if (Platform.OS === "web" && API_BASE_URL.startsWith("http://")) {
   console.warn(
-    "[VizinhoAlert] Mixed content warning: API is using HTTP but web preview requires HTTPS. " +
-    "API calls may be blocked by the browser. Mobile (Expo Go) will still work."
+    "[VizinhoAlert] Mixed content warning: API is using HTTP but web requires HTTPS. " +
+    "Set EXPO_PUBLIC_API_BASE_URL to use https://api.vizinhoalert.eu/api/v1"
   );
 }
 

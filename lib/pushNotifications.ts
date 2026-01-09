@@ -18,9 +18,23 @@ Notifications.setNotificationHandler({
   }),
 });
 
+/**
+ * Check if we're running in Expo Go (which has push notification limitations)
+ */
+function isExpoGo(): boolean {
+  return Constants.appOwnership === "expo";
+}
+
 async function getExpoPushToken(): Promise<string | null> {
+  // Skip on non-physical devices
   if (!Device.isDevice) {
-    console.log("Push notifications require a physical device");
+    console.log("[VizinhoAlert] Push notifications require a physical device");
+    return null;
+  }
+
+  // Gracefully handle Expo Go limitations
+  if (isExpoGo()) {
+    console.log("[VizinhoAlert] Push notifications are limited in Expo Go. Use a development build for full functionality.");
     return null;
   }
 
@@ -30,6 +44,10 @@ async function getExpoPushToken(): Promise<string | null> {
       (Constants as any).easConfig?.projectId ??
       Constants.expoConfig?.extra?.eas?.projectId;
 
+    if (!projectId) {
+      console.warn("[VizinhoAlert] No EAS projectId found. Push notifications may not work correctly.");
+    }
+
     // Get token with or without projectId
     const token = projectId
       ? await Notifications.getExpoPushTokenAsync({ projectId })
@@ -37,45 +55,59 @@ async function getExpoPushToken(): Promise<string | null> {
 
     return token.data;
   } catch (error) {
-    console.error("Failed to get push token:", error);
+    // Don't crash the app - just log and return null
+    console.warn("[VizinhoAlert] Failed to get push token:", error);
     return null;
   }
 }
 
 export async function setupPushNotifications(): Promise<void> {
+  // Skip push setup on web platform
+  if (Platform.OS === "web") {
+    console.log("[VizinhoAlert] Push notifications not supported on web");
+    return;
+  }
+
+  // Skip in Expo Go to avoid crashes
+  if (isExpoGo()) {
+    console.log("[VizinhoAlert] Skipping push setup in Expo Go");
+    return;
+  }
+
   // Check if already registered
   const alreadyRegistered = await isPushTokenRegistered();
   if (alreadyRegistered) {
     return;
   }
 
-  // Request permission
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== "granted") {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== "granted") {
-    console.log("Push notification permission denied");
-    return;
-  }
-
-  // Get the push token
-  const pushToken = await getExpoPushToken();
-  if (!pushToken) {
-    return;
-  }
-
-  // Register with backend
   try {
+    // Request permission
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== "granted") {
+      console.log("[VizinhoAlert] Push notification permission denied");
+      return;
+    }
+
+    // Get the push token
+    const pushToken = await getExpoPushToken();
+    if (!pushToken) {
+      return;
+    }
+
+    // Register with backend
     const platform = Platform.OS as "ios" | "android";
     await registerPushToken(pushToken, platform);
     await setPushTokenRegistered(true);
-    console.log("Push token registered successfully");
+    console.log("[VizinhoAlert] Push token registered successfully");
   } catch (error) {
-    console.error("Failed to register push token with backend:", error);
+    // Never crash the app due to push notification issues
+    console.warn("[VizinhoAlert] Push notification setup failed (non-critical):", error);
   }
 }

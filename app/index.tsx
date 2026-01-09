@@ -33,8 +33,13 @@ export default function HomeScreen() {
       // Ensure authenticated (no location required for inbox)
       await ensureAuthenticated();
 
-      // Setup push notifications (runs once per device)
-      await setupPushNotifications();
+      // Setup push notifications (runs once per device, gracefully handles Expo Go)
+      try {
+        await setupPushNotifications();
+      } catch (pushError) {
+        // Don't fail the entire load if push setup fails
+        console.warn("[VizinhoAlert] Push notification setup skipped:", pushError);
+      }
 
       // Fetch alerts from backend
       const apiAlerts = await fetchMyAlerts();

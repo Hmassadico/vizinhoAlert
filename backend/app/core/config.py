@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # Application
     APP_ENV: str = "development"
     DEBUG: bool = True
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8081"
+    ALLOWED_ORIGINS: str = "https://vizinhoalert.eu,https://www.vizinhoalert.eu,http://localhost:3000,http://localhost:19006,http://localhost:8081"
     
     @property
     def allowed_origins_list(self) -> List[str]:
