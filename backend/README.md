@@ -215,6 +215,38 @@ if (pushToken) {
 | QR_CODE_BASE_URL | Base URL for QR codes | https://vizinhoalert.eu/vehicle |
 | DEBUG | Enable debug mode | false |
 
+## License Plate Validation
+
+VizinhoAlert validates license plates for UK and major EU countries before registration.
+
+### Supported Formats
+
+| Country | Format | Example |
+|---------|--------|---------|
+| 🇬🇧 UK | AA12AAA | AB12CDE |
+| 🇵🇹 Portugal | AA12BB | AA12BB |
+| 🇫🇷 France | AB123CD | AB123CD |
+| 🇩🇪 Germany | B1234 | B1234 |
+| 🇪🇸 Spain | 1234BCD | 1234BCD |
+| 🇮🇹 Italy | AB123CD | AB123CD |
+| 🇳🇱 Netherlands | AB12CD | AB12CD |
+
+### Normalization
+
+All plates are normalized before validation and hashing:
+- Converted to uppercase
+- Whitespace trimmed
+- Spaces, dashes, dots removed
+
+Example: `"ab-12 cde"` → `"AB12CDE"`
+
+### Privacy
+
+**Raw license plates are NEVER stored.** Only a SHA-256 hash is saved, ensuring:
+- Consistent hashing regardless of input format
+- One-way hash (cannot be reversed)
+- Privacy-first approach
+
 ## Developer Testing
 
 ### Quick Test with curl
@@ -256,13 +288,28 @@ Response:
 }
 ```
 
-**3. List vehicles:**
+**3. Test invalid plate (should return 422):**
+```bash
+curl -X POST http://localhost:8000/api/v1/vehicles \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"vehicle_id": "INVALID123456", "nickname": "Test"}'
+```
+
+Response:
+```json
+{
+  "detail": [{"msg": "Value error, Invalid license plate format for UK or EU", ...}]
+}
+```
+
+**4. List vehicles:**
 ```bash
 curl http://localhost:8000/api/v1/vehicles \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-**4. Health check:**
+**5. Health check:**
 ```bash
 curl http://localhost:8000/api/v1/health
 ```

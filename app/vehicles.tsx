@@ -21,6 +21,11 @@ import {
   fetchVehicleQR,
   deleteVehicle,
 } from "@/lib/api";
+import {
+  normalizeLicensePlate,
+  getLicensePlateError,
+  isValidLicensePlate,
+} from "@/lib/licensePlate";
 
 export default function VehiclesScreen() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -32,6 +37,7 @@ export default function VehiclesScreen() {
   const [vehicleIdInput, setVehicleIdInput] = useState("");
   const [nicknameInput, setNicknameInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [plateError, setPlateError] = useState<string | null>(null);
 
   // QR modal
   const [qrModalVisible, setQrModalVisible] = useState(false);
@@ -62,24 +68,58 @@ export default function VehiclesScreen() {
     setRefreshing(false);
   };
 
+  // Handle license plate input changes with validation
+  const handlePlateInputChange = (text: string) => {
+    // Auto-uppercase and allow typing
+    const upper = text.toUpperCase();
+    setVehicleIdInput(upper);
+    
+    // Clear error while typing if plate becomes valid
+    if (upper.trim()) {
+      const normalized = normalizeLicensePlate(upper);
+      if (normalized.length >= 4) {
+        const error = getLicensePlateError(upper);
+        setPlateError(error);
+      } else {
+        setPlateError(null);
+      }
+    } else {
+      setPlateError(null);
+    }
+  };
+
   const handleAddVehicle = async () => {
     if (!vehicleIdInput.trim() || isSubmitting) return;
+
+    // Validate license plate before submitting
+    const error = getLicensePlateError(vehicleIdInput);
+    if (error) {
+      setPlateError(error);
+      return;
+    }
+
+    // Normalize the plate before sending
+    const normalizedPlate = normalizeLicensePlate(vehicleIdInput);
 
     setIsSubmitting(true);
     try {
       const newVehicle = await registerVehicle(
-        vehicleIdInput.trim(),
+        normalizedPlate,
         nicknameInput.trim() || undefined
       );
       setVehicles((prev) => [...prev, newVehicle]);
       setAddModalVisible(false);
       setVehicleIdInput("");
       setNicknameInput("");
+      setPlateError(null);
     } catch (error: any) {
-      RNAlert.alert(
-        "Registration Failed",
-        error.message || "Failed to register vehicle."
-      );
+      // Handle specific validation errors from backend
+      const message = error.message || "Failed to register vehicle.";
+      if (message.includes("Invalid license plate")) {
+        setPlateError("Enter a valid UK or European license plate");
+      } else {
+        RNAlert.alert("Registration Failed", message);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -250,20 +290,27 @@ export default function VehiclesScreen() {
 
             <View className="mb-4">
               <Text className="text-foreground text-sm font-medium mb-2">
-                Vehicle ID (License Plate)
+                License Plate (UK or EU)
               </Text>
               <TextInput
                 value={vehicleIdInput}
-                onChangeText={setVehicleIdInput}
-                placeholder="e.g., AB-12-CD"
+                onChangeText={handlePlateInputChange}
+                placeholder="e.g., AB12CDE"
                 placeholderTextColor="#6b7280"
-                className="bg-border/50 rounded-lg px-4 py-3 text-foreground"
+                className={`bg-border/50 rounded-lg px-4 py-3 text-foreground ${
+                  plateError ? "border border-urgent" : ""
+                }`}
                 autoCapitalize="characters"
                 autoCorrect={false}
+                maxLength={10}
               />
-              <Text className="text-muted text-xs mt-2">
-                This will be hashed for privacy. The original is never stored.
-              </Text>
+              {plateError ? (
+                <Text className="text-urgent text-xs mt-2">{plateError}</Text>
+              ) : (
+                <Text className="text-muted text-xs mt-2">
+                  Supports UK (AB12CDE), PT (AA12BB), FR (AB123CD), DE (B1234), ES (1234BCD), IT, NL formats. Your plate is hashed for privacy.
+                </Text>
+              )}
             </View>
 
             <View className="mb-6">
@@ -281,14 +328,14 @@ export default function VehiclesScreen() {
 
             <Pressable
               onPress={handleAddVehicle}
-              disabled={!vehicleIdInput.trim() || isSubmitting}
+              disabled={!vehicleIdInput.trim() || isSubmitting || !!plateError}
               className={`py-4 rounded-lg items-center ${
-                vehicleIdInput.trim() && !isSubmitting ? "bg-info" : "bg-border"
+                vehicleIdInput.trim() && !isSubmitting && !plateError ? "bg-info" : "bg-border"
               }`}
             >
               <Text
                 className={`font-bold text-base ${
-                  vehicleIdInput.trim() && !isSubmitting
+                  vehicleIdInput.trim() && !isSubmitting && !plateError
                     ? "text-background"
                     : "text-muted"
                 }`}

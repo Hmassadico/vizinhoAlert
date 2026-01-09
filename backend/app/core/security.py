@@ -17,8 +17,16 @@ security = HTTPBearer()
 
 
 def hash_vehicle_id(vehicle_id: str) -> str:
-    """Hash vehicle ID for privacy - one-way hash using pepper from settings"""
-    return hashlib.sha256(f"{settings.VEHICLE_HASH_PEPPER}{vehicle_id}".encode()).hexdigest()
+    """
+    Hash vehicle ID for privacy - one-way hash using pepper from settings.
+    IMPORTANT: vehicle_id should already be normalized (uppercase, no spaces/dashes).
+    This ensures consistent hashing regardless of input format.
+    """
+    # Normalize before hashing to ensure consistency
+    # "ab-12 cde" and "AB12CDE" will produce the same hash
+    from app.core.license_plate import normalize_license_plate
+    normalized = normalize_license_plate(vehicle_id)
+    return hashlib.sha256(f"{settings.VEHICLE_HASH_PEPPER}{normalized}".encode()).hexdigest()
 
 
 def hash_device_id(device_id: str) -> str:
