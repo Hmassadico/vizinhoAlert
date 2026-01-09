@@ -8,8 +8,8 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://vizinho:vizinho_secret@db:5432/vizinhoalert
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - APP_ENV=production
-      - DEBUG=false
+      - APP_ENV=development
+      - DEBUG=true
     depends_on:
       db:
         condition: service_healthy
