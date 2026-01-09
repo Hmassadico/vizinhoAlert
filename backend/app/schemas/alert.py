@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 from typing import List, Optional
 from datetime import datetime
+from uuid import UUID
 
 from app.models.alert import AlertType
 
@@ -15,16 +16,20 @@ class AlertCreateRequest(BaseModel):
 
 class AlertResponse(BaseModel):
     """Alert information response"""
-    id: str
+    id: UUID
     alert_type: AlertType
     latitude: float
     longitude: float
     created_at: datetime
     expires_at: datetime
-    notification_sent: Optional[datetime]
+    notification_sent_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
+    
+    @field_serializer('id')
+    def serialize_id(self, id: UUID) -> str:
+        return str(id)
 
 
 class AlertListResponse(BaseModel):

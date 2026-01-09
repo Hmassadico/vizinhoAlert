@@ -1,6 +1,7 @@
 import httpx
 from typing import List, Optional
 from datetime import datetime
+import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -23,12 +24,13 @@ ALERT_TYPE_MESSAGES = {
 
 async def send_push_notification(
     db: AsyncSession,
-    device_id: str,
+    device_id: uuid.UUID,
     alert: Alert,
 ) -> bool:
     """
     Send push notification to a device about an alert.
     Uses Expo Push Notification service.
+    device_id should be a UUID object.
     """
     # Get active push tokens for device
     result = await db.execute(
@@ -52,7 +54,7 @@ async def send_push_notification(
             "title": "VizinhoAlert",
             "body": message,
             "data": {
-                "alert_id": alert.id,
+                "alert_id": str(alert.id),  # Convert UUID to string for JSON
                 "alert_type": alert.alert_type.value,
             },
             "sound": "default",
@@ -74,7 +76,7 @@ async def send_push_notification(
             
             if response.status_code == 200:
                 # Update alert notification status
-                alert.notification_sent = datetime.utcnow()
+                alert.notification_sent_at = datetime.utcnow()
                 return True
                 
     except Exception as e:

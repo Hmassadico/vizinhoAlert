@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, DateTime, Float, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, String, DateTime, Float, ForeignKey, Enum as SQLEnum, Boolean
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
 import uuid
@@ -19,6 +20,15 @@ class AlertType(str, enum.Enum):
     GENERAL = "general"
 
 
+class AlertStatus(str, enum.Enum):
+    """Alert lifecycle status"""
+    ACTIVE = "active"
+    ACKNOWLEDGED = "acknowledged"
+    RESOLVED = "resolved"
+    EXPIRED = "expired"
+    FLAGGED = "flagged"
+
+
 # Alert expiry in days (GDPR compliance - auto-delete)
 ALERT_EXPIRY_DAYS = 30
 
@@ -31,33 +41,49 @@ class Alert(Base):
     """
     __tablename__ = "alerts"
     
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
-    # Who created the alert (anonymous device)
-    device_id = Column(String(36), ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
+    # Who created the alert (anonymous device) - matches Postgres "sender_device_id"
+    sender_device_id = Column(UUID(as_uuid=True), ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
     
     # Which vehicle the alert is for
-    vehicle_id = Column(String(36), ForeignKey("vehicles.id", ondelete="CASCADE"), nullable=False)
+    vehicle_id = Column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"), nullable=False)
     
-    # Alert type (predefined only)
-    alert_type = Column(SQLEnum(AlertType), nullable=False)
+    # Alert type (predefined only) - uses existing Postgres enum "alert_type"
+    alert_type = Column(
+        SQLEnum(AlertType, name="alert_type", create_type=False),
+        nullable=False
+    )
+    
+    # Alert status - uses existing Postgres enum "alert_status"
+    status = Column(
+        SQLEnum(AlertStatus, name="alert_status", create_type=False),
+        default=AlertStatus.ACTIVE
+    )
     
     # Location where alert was created (approximate)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
+    # Timestamps (timezone-aware to match Postgres schema)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     expires_at = Column(
-        DateTime, 
+        DateTime(timezone=True), 
         default=lambda: datetime.utcnow() + timedelta(days=ALERT_EXPIRY_DAYS)
     )
     
-    # Notification status
-    notification_sent = Column(DateTime, nullable=True)
+    # Notification tracking
+    notification_sent_at = Column(DateTime(timezone=True), nullable=True)
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Abuse tracking
+    is_flagged = Column(Boolean, default=False)
+    flagged_at = Column(DateTime(timezone=True), nullable=True)
+    flag_reason = Column(String(50), nullable=True)
     
     # Relationships
-    device = relationship("Device", back_populates="alerts")
+    device = relationship("Device", back_populates="alerts", foreign_keys=[sender_device_id])
     vehicle = relationship("Vehicle", back_populates="alerts")
     
     @property
@@ -65,4 +91,4 @@ class Alert(Base):
         return datetime.utcnow() > self.expires_at
     
     def __repr__(self):
-        return f"<Alert {self.alert_type.value} for vehicle {self.vehicle_id[:8]}...>"
+        return f"<Alert {self.alert_type.value} for vehicle {str(self.vehicle_id)[:8]}...>"

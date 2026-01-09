@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
 
 
 class VehicleRegisterRequest(BaseModel):
@@ -16,7 +17,7 @@ class VehicleRegisterRequest(BaseModel):
 
 class VehicleResponse(BaseModel):
     """Vehicle information response"""
-    id: str
+    id: UUID
     qr_code_token: str
     nickname: Optional[str]
     is_active: bool
@@ -24,6 +25,10 @@ class VehicleResponse(BaseModel):
     
     class Config:
         from_attributes = True
+    
+    @field_serializer('id')
+    def serialize_id(self, id: UUID) -> str:
+        return str(id)
 
 
 class VehicleQRResponse(BaseModel):

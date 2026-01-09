@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import secrets
+import uuid
 
 from app.core.database import get_db
 from app.core.security import hash_vehicle_id, verify_token
@@ -23,7 +24,7 @@ router = APIRouter()
 async def register_vehicle(
     request: Request,
     data: VehicleRegisterRequest,
-    device_id: str = Depends(verify_token),
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -44,7 +45,7 @@ async def register_vehicle(
             detail="Vehicle already registered"
         )
     
-    # Create vehicle
+    # Create vehicle - device_id is already a UUID object
     vehicle = Vehicle(
         device_id=device_id,
         vehicle_id_hash=vehicle_hash,
@@ -61,7 +62,7 @@ async def register_vehicle(
 
 @router.get("", response_model=list[VehicleResponse])
 async def list_vehicles(
-    device_id: str = Depends(verify_token),
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """List all vehicles registered by this device"""
@@ -77,8 +78,8 @@ async def list_vehicles(
 
 @router.get("/{vehicle_id}", response_model=VehicleResponse)
 async def get_vehicle(
-    vehicle_id: str,
-    device_id: str = Depends(verify_token),
+    vehicle_id: uuid.UUID,
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Get vehicle details"""
@@ -101,8 +102,8 @@ async def get_vehicle(
 
 @router.get("/{vehicle_id}/qr", response_model=VehicleQRResponse)
 async def get_vehicle_qr_code(
-    vehicle_id: str,
-    device_id: str = Depends(verify_token),
+    vehicle_id: uuid.UUID,
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Generate QR code for vehicle"""
@@ -125,14 +126,14 @@ async def get_vehicle_qr_code(
     return VehicleQRResponse(
         qr_code_url=qr_url,
         qr_code_data=qr_data,
-        vehicle_id=vehicle.id,
+        vehicle_id=str(vehicle.id),  # Convert UUID to string for response
     )
 
 
 @router.delete("/{vehicle_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_vehicle(
-    vehicle_id: str,
-    device_id: str = Depends(verify_token),
+    vehicle_id: uuid.UUID,
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a vehicle registration"""

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from datetime import datetime
+import uuid
 
 from app.core.database import get_db
 from app.core.security import verify_token
@@ -24,7 +25,7 @@ router = APIRouter()
 async def create_alert(
     request: Request,
     data: AlertCreateRequest,
-    device_id: str = Depends(verify_token),
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -53,9 +54,9 @@ async def create_alert(
             detail="Cannot create alert for your own vehicle"
         )
     
-    # Create alert
+    # Create alert - use sender_device_id to match Postgres schema
     alert = Alert(
-        device_id=device_id,
+        sender_device_id=device_id,
         vehicle_id=vehicle.id,
         alert_type=data.alert_type,
         latitude=data.latitude,
@@ -75,7 +76,7 @@ async def create_alert(
 
 @router.get("", response_model=AlertListResponse)
 async def list_my_alerts(
-    device_id: str = Depends(verify_token),
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -134,8 +135,8 @@ async def list_my_alerts(
 
 @router.get("/{alert_id}", response_model=AlertResponse)
 async def get_alert(
-    alert_id: str,
-    device_id: str = Depends(verify_token),
+    alert_id: uuid.UUID,
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a specific alert"""

@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
 
 
 class DeviceRegisterRequest(BaseModel):
@@ -29,7 +30,7 @@ class DeviceUpdateLocationRequest(BaseModel):
 
 class DeviceResponse(BaseModel):
     """Device information response"""
-    id: str
+    id: UUID
     alert_radius_km: float
     is_active: bool
     created_at: datetime
@@ -37,3 +38,7 @@ class DeviceResponse(BaseModel):
     
     class Config:
         from_attributes = True
+    
+    @field_serializer('id')
+    def serialize_id(self, id: UUID) -> str:
+        return str(id)

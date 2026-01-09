@@ -1,4 +1,5 @@
 from datetime import datetime
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,7 +51,7 @@ async def register_device(
             device.last_latitude = data.latitude
             device.last_longitude = data.longitude
     else:
-        # Create new device
+        # Create new device - let SQLAlchemy default generate UUID
         device = Device(
             device_id_hash=device_hash,
             anonymous_token=generate_anonymous_token(),
@@ -62,18 +63,18 @@ async def register_device(
     await db.commit()
     await db.refresh(device)
     
-    # Generate JWT token
+    # Generate JWT token (device.id is now a UUID object)
     access_token = create_access_token(device.id)
     
     return DeviceRegisterResponse(
         access_token=access_token,
-        device_uuid=device.id,
+        device_uuid=str(device.id),  # Convert UUID to string for response
     )
 
 
 @router.get("/me", response_model=DeviceResponse)
 async def get_current_device(
-    device_id: str = Depends(verify_token),
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Get current device information"""
@@ -94,7 +95,7 @@ async def get_current_device(
 @router.patch("/me", response_model=DeviceResponse)
 async def update_device(
     data: DeviceUpdateLocationRequest,
-    device_id: str = Depends(verify_token),
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Update device location and settings"""
@@ -123,7 +124,7 @@ async def update_device(
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_device(
-    device_id: str = Depends(verify_token),
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """

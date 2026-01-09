@@ -215,6 +215,58 @@ if (pushToken) {
 | QR_CODE_BASE_URL | Base URL for QR codes | https://vizinhoalert.eu/vehicle |
 | DEBUG | Enable debug mode | false |
 
+## Developer Testing
+
+### Quick Test with curl
+
+**1. Register a device:**
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"device_id": "test-device-abc123def456", "latitude": null, "longitude": null}'
+```
+
+Response:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "device_uuid": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+**2. Register a vehicle (requires JWT):**
+```bash
+export TOKEN="eyJhbGciOiJIUzI1NiIs..."  # from step 1
+
+curl -X POST http://localhost:8000/api/v1/vehicles \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"vehicle_id": "AB12CDE", "nickname": "My Car"}'
+```
+
+Response:
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "qr_code_token": "abc123...",
+  "nickname": "My Car",
+  "is_active": true,
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**3. List vehicles:**
+```bash
+curl http://localhost:8000/api/v1/vehicles \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**4. Health check:**
+```bash
+curl http://localhost:8000/api/v1/health
+```
+
 ## License
 
 MIT

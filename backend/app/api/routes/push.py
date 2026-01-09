@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import uuid
 
 from app.core.database import get_db
 from app.core.security import verify_token
@@ -14,7 +15,7 @@ router = APIRouter()
 @router.post("/token", response_model=PushTokenResponse, status_code=status.HTTP_201_CREATED)
 async def register_push_token(
     data: PushTokenRegisterRequest,
-    device_id: str = Depends(verify_token),
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Register or update push notification token"""
@@ -44,7 +45,7 @@ async def register_push_token(
     for token in old_tokens:
         token.is_active = False
     
-    # Create new token
+    # Create new token - device_id is already a UUID object
     push_token = PushToken(
         device_id=device_id,
         token=data.token,
@@ -61,7 +62,7 @@ async def register_push_token(
 @router.delete("/token", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_push_token(
     token: str,
-    device_id: str = Depends(verify_token),
+    device_id: uuid.UUID = Depends(verify_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Remove push notification token"""

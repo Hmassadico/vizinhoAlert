@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean, Integer
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
@@ -14,8 +15,8 @@ class Vehicle(Base):
     """
     __tablename__ = "vehicles"
     
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    device_id = Column(String(36), ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    device_id = Column(UUID(as_uuid=True), ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
     
     # Hashed vehicle identifier (one-way hash of license plate or VIN)
     vehicle_id_hash = Column(String(64), unique=True, nullable=False, index=True)
@@ -29,13 +30,17 @@ class Vehicle(Base):
     # Status
     is_active = Column(Boolean, default=True)
     
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Abuse tracking (matching Postgres schema)
+    alert_count_received = Column(Integer, default=0)
+    false_alert_count = Column(Integer, default=0)
+    
+    # Timestamps (timezone-aware to match Postgres schema)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     device = relationship("Device", back_populates="vehicles")
     alerts = relationship("Alert", back_populates="vehicle", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<Vehicle {self.id[:8]}...>"
+        return f"<Vehicle {str(self.id)[:8]}...>"

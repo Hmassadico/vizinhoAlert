@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import hashlib
 import secrets
+import uuid
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -30,9 +31,10 @@ def generate_anonymous_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-def create_access_token(device_id: str, expires_delta: Optional[timedelta] = None) -> str:
-    """Create JWT access token for device"""
-    to_encode = {"sub": device_id, "type": "device"}
+def create_access_token(device_id: uuid.UUID, expires_delta: Optional[timedelta] = None) -> str:
+    """Create JWT access token for device. device_id must be a UUID."""
+    # Store UUID as string in JWT
+    to_encode = {"sub": str(device_id), "type": "device"}
     
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -49,8 +51,8 @@ def create_access_token(device_id: str, expires_delta: Optional[timedelta] = Non
     return encoded_jwt
 
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
-    """Verify JWT token and return device_id"""
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> uuid.UUID:
+    """Verify JWT token and return device_id as UUID"""
     token = credentials.credentials
     
     credentials_exception = HTTPException(
@@ -65,14 +67,15 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM]
         )
-        device_id: str = payload.get("sub")
+        device_id_str: str = payload.get("sub")
         
-        if device_id is None:
+        if device_id_str is None:
             raise credentials_exception
-            
-        return device_id
         
-    except JWTError:
+        # Parse and return as UUID
+        return uuid.UUID(device_id_str)
+        
+    except (JWTError, ValueError):
         raise credentials_exception
 
 
@@ -80,8 +83,8 @@ def verify_token_optional(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(
         HTTPBearer(auto_error=False)
     )
-) -> Optional[str]:
-    """Optionally verify JWT token"""
+) -> Optional[uuid.UUID]:
+    """Optionally verify JWT token, returns UUID or None"""
     if credentials is None:
         return None
     
@@ -91,6 +94,9 @@ def verify_token_optional(
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM]
         )
-        return payload.get("sub")
-    except JWTError:
+        device_id_str = payload.get("sub")
+        if device_id_str is None:
+            return None
+        return uuid.UUID(device_id_str)
+    except (JWTError, ValueError):
         return None
