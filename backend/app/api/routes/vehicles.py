@@ -7,6 +7,7 @@ import uuid
 from app.core.database import get_db
 from app.core.security import hash_vehicle_id, verify_token
 from app.core.rate_limiter import limiter
+from app.core.license_plate import detect_plate_country, normalize_license_plate
 from app.models.vehicle import Vehicle
 from app.schemas.vehicle import (
     VehicleRegisterRequest,
@@ -20,7 +21,7 @@ router = APIRouter()
 
 
 @router.post("", response_model=VehicleResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/minute")
+@limiter.limit("20/minute")  # Rate limit for brute-force protection
 async def register_vehicle(
     request: Request,
     data: VehicleRegisterRequest,
@@ -30,8 +31,16 @@ async def register_vehicle(
     """
     Register a new vehicle.
     Vehicle ID is hashed - original value is never stored.
+    License plate is validated and normalized before hashing.
     """
-    vehicle_hash = hash_vehicle_id(data.vehicle_id)
+    # Plate is already normalized by Pydantic validator
+    plate_norm = normalize_license_plate(data.vehicle_id)
+    vehicle_hash = hash_vehicle_id(plate_norm)
+    
+    # Detect country from plate format
+    country = detect_plate_country(plate_norm)
+    country_code = country[0] if country else None
+    country_name = country[1] if country else None
     
     # Check if vehicle already registered
     result = await db.execute(
@@ -57,7 +66,16 @@ async def register_vehicle(
     await db.commit()
     await db.refresh(vehicle)
     
-    return vehicle
+    # Return response with country detection
+    return VehicleResponse(
+        id=vehicle.id,
+        qr_code_token=vehicle.qr_code_token,
+        nickname=vehicle.nickname,
+        is_active=vehicle.is_active,
+        created_at=vehicle.created_at,
+        country_code=country_code,
+        country_name=country_name,
+    )
 
 
 @router.get("", response_model=list[VehicleResponse])

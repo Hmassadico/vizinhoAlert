@@ -197,9 +197,16 @@ if (pushToken) {
 
 ## Rate Limits
 
-- General API: 60 requests/minute per device
-- Alert Creation: 10 alerts/hour per device
-- Device Registration: 10 requests/minute per IP
+Built-in rate limiting protects against brute-force attacks:
+
+| Endpoint | Limit | Protection |
+|----------|-------|------------|
+| Device Registration | 10/minute per IP | Prevent token farming |
+| Vehicle Registration | 20/minute per device | Prevent plate brute-forcing |
+| Alert Creation | 10/hour per device | Prevent spam alerts |
+| General API | 60/minute per device | Standard protection |
+
+The rate limiter supports both slowapi (with Redis for multi-replica) and an in-memory fallback for single-instance deployments.
 
 ## Environment Variables
 
@@ -274,17 +281,19 @@ export TOKEN="eyJhbGciOiJIUzI1NiIs..."  # from step 1
 curl -X POST http://localhost:8000/api/v1/vehicles \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"vehicle_id": "AB12CDE", "nickname": "My Car"}'
+  -d '{"vehicle_id": "AB 12-CDE", "nickname": "My Car"}'
 ```
 
-Response:
+Response (note: plate normalized, country auto-detected):
 ```json
 {
   "id": "123e4567-e89b-12d3-a456-426614174000",
   "qr_code_token": "abc123...",
   "nickname": "My Car",
   "is_active": true,
-  "created_at": "2024-01-15T10:30:00Z"
+  "created_at": "2024-01-15T10:30:00Z",
+  "country_code": "UK",
+  "country_name": "United Kingdom (DVLA)"
 }
 ```
 

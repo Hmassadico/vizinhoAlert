@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime
 from uuid import UUID
 
-from app.core.license_plate import validate_license_plate, normalize_license_plate
+from app.core.license_plate import validate_plate_or_raise, normalize_license_plate, detect_plate_country
 
 
 class VehicleRegisterRequest(BaseModel):
@@ -16,15 +16,22 @@ class VehicleRegisterRequest(BaseModel):
     )
     nickname: Optional[str] = Field(None, max_length=50)
     
+    # Auto-detected country info (populated after validation)
+    detected_country_code: Optional[str] = None
+    detected_country_name: Optional[str] = None
+    
     @field_validator('vehicle_id')
     @classmethod
-    def validate_license_plate_format(cls, v: str) -> str:
+    def validate_and_normalize_plate(cls, v: str) -> str:
         """Validate and normalize the license plate"""
-        is_valid, country = validate_license_plate(v)
-        if not is_valid:
-            raise ValueError("Invalid license plate format for UK or EU")
-        # Return normalized plate
-        return normalize_license_plate(v)
+        plate_norm, _, _ = validate_plate_or_raise(v)
+        return plate_norm  # Return normalized plate
+    
+    @field_validator('nickname')
+    @classmethod
+    def nickname_strip(cls, v: Optional[str]) -> Optional[str]:
+        """Strip whitespace from nickname"""
+        return v.strip() if v else v
 
 
 class VehicleResponse(BaseModel):
@@ -34,6 +41,10 @@ class VehicleResponse(BaseModel):
     nickname: Optional[str]
     is_active: bool
     created_at: datetime
+    
+    # Auto-detected country from plate format
+    country_code: Optional[str] = None
+    country_name: Optional[str] = None
     
     class Config:
         from_attributes = True
