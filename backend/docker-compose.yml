@@ -4,7 +4,7 @@ services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - DATABASE_URL=postgresql+asyncpg://vizinho:vizinho_secret@db:5432/vizinhoalert
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
