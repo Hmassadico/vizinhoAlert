@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
-import { v4 as uuidv4 } from "uuid";
+import * as Crypto from "expo-crypto";
 import { Alert, AlertType, Vehicle, VehicleQR } from "@/types/alerts";
 
 // Centralized API base URL configuration
@@ -16,7 +16,7 @@ if (Platform.OS === "web" && API_BASE_URL.startsWith("http://")) {
   );
 }
 
-const DEVICE_ID_KEY = "@vizinhoalert:device_id";
+const DEVICE_ID_KEY = "vizinhoalert_device_id";
 const JWT_TOKEN_KEY = "@vizinhoalert:jwt_token";
 const DEVICE_UUID_KEY = "@vizinhoalert:device_uuid";
 const PUSH_TOKEN_REGISTERED_KEY = "@vizinhoalert:push_token_registered";
@@ -30,11 +30,17 @@ function checkMixedContent(): void {
   }
 }
 
-// Device ID management
+// Device ID management - uses expo-crypto for RN compatibility
 export async function getOrCreateDeviceId(): Promise<string> {
   let deviceId = await AsyncStorage.getItem(DEVICE_ID_KEY);
   if (!deviceId) {
-    deviceId = uuidv4();
+    // Generate device ID using expo-crypto (works in RN runtime)
+    const randomBytes = await Crypto.getRandomBytesAsync(16);
+    // Convert to hex string and make alphanumeric (remove dashes, slice to <= 64 chars)
+    deviceId = Array.from(randomBytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+      .slice(0, 64);
     await AsyncStorage.setItem(DEVICE_ID_KEY, deviceId);
   }
   return deviceId;

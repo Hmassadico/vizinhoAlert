@@ -12,7 +12,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.autisyncsorganization.vizinhoalertrzi1z1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "VizinhoAlert needs camera access to scan vehicle QR codes for sending alerts.",
+        "NSLocationWhenInUseUsageDescription": "VizinhoAlert needs your location to send alerts to nearby vehicle owners. Your location is never stored or shared."
       }
     },
     "android": {
@@ -20,7 +22,12 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.autisyncsorganization.vizinhoalertrzi1z1"
+      "package": "com.autisyncsorganization.vizinhoalertrzi1z1",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",

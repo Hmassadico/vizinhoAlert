@@ -60,6 +60,12 @@ export default function ScanScreen() {
     setAlertSelectorVisible(false);
 
     try {
+      // Request location permission first
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        throw new Error("Location permission is required to send alerts. Please enable location access in your device settings.");
+      }
+
       const loc = await Location.getCurrentPositionAsync({});
 
       await createAlert(
@@ -153,8 +159,10 @@ export default function ScanScreen() {
           barcodeTypes: ["qr"],
         }}
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-      >
-        {/* Overlay */}
+      />
+      
+      {/* Overlay - Positioned absolutely over camera */}
+      <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
         <SafeAreaView className="flex-1">
           {/* Header */}
           <View className="flex-row items-center justify-between px-4 py-4">
@@ -202,7 +210,7 @@ export default function ScanScreen() {
             </View>
           </View>
         </SafeAreaView>
-      </CameraView>
+      </View>
 
       <AlertTypeSelectorModal
         visible={alertSelectorVisible}
