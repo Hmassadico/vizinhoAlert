@@ -26,7 +26,7 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=DeviceRegisterResponse)
-@limiter.limit("10/minute")
+@limiter.limit("20/minute")  # Rate limit per IP to prevent token farming
 async def register_device(
     request: Request,
     data: DeviceRegisterRequest,

@@ -60,13 +60,22 @@ export default function ScanScreen() {
     setAlertSelectorVisible(false);
 
     try {
-      // Request location permission first
+      // Check if location services are enabled on the device
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        throw new Error("Location services are disabled on your device. Please enable location services in your device settings to send alerts.");
+      }
+
+      // Request location permission
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         throw new Error("Location permission is required to send alerts. Please enable location access in your device settings.");
       }
 
-      const loc = await Location.getCurrentPositionAsync({});
+      // Get current position
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
 
       await createAlert(
         scannedToken,

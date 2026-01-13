@@ -21,7 +21,7 @@ router = APIRouter()
 
 
 @router.post("", response_model=AlertResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("10/hour")  # Strict rate limit for alert creation
+@limiter.limit("30/minute")  # Rate limit per IP to prevent spam alerts
 async def create_alert(
     request: Request,
     data: AlertCreateRequest,

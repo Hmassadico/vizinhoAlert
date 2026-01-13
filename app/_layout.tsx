@@ -1,3 +1,6 @@
+// Polyfill for crypto.getRandomValues (must be first import)
+import "react-native-get-random-values";
+
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";

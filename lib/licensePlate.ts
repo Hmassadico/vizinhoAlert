@@ -1,6 +1,6 @@
 /**
- * License Plate Validation for UK and EU countries.
- * Supports: UK, Portugal, France, Germany, Spain, Italy, Netherlands
+ * License Plate Validation for GB, IE, and common European formats.
+ * Supports: GB, IE, PT, ES, FR, DE, IT, NL, BE, CH, AT, SE, NO, DK, PL
  */
 
 interface PlateRule {
@@ -12,41 +12,59 @@ interface PlateRule {
 
 // Pre-compiled patterns with country info
 const PLATE_RULES: PlateRule[] = [
-  // UK (DVLA compliant - current format)
-  { countryCode: "UK", countryName: "United Kingdom (DVLA)", pattern: /^[A-Z]{2}[0-9]{2}[A-Z]{3}$/, example: "AB12CDE" },
-  // UK older styles
-  { countryCode: "UK", countryName: "United Kingdom (Older)", pattern: /^[A-Z][0-9]{1,3}[A-Z]{3}$/, example: "A123BCD" },
-  { countryCode: "UK", countryName: "United Kingdom (Older)", pattern: /^[A-Z]{3}[0-9]{1,3}[A-Z]$/, example: "ABC123D" },
+  // Great Britain (DVLA current format)
+  { countryCode: "GB", countryName: "Great Britain (DVLA)", pattern: /^[A-Z]{2}[0-9]{2}[A-Z]{3}$/, example: "AB12CDE" },
+  // GB older styles
+  { countryCode: "GB", countryName: "Great Britain (Older)", pattern: /^[A-Z][0-9]{1,3}[A-Z]{3}$/, example: "A123BCD" },
+  { countryCode: "GB", countryName: "Great Britain (Older)", pattern: /^[A-Z]{3}[0-9]{1,3}[A-Z]$/, example: "ABC123D" },
+
+  // Ireland
+  { countryCode: "IE", countryName: "Ireland", pattern: /^[0-9]{2,3}[A-Z]{1,2}[0-9]{1,6}$/, example: "12D12345" },
 
   // Portugal
-  { countryCode: "PT", countryName: "Portugal", pattern: /^(?:[A-Z]{2}[0-9]{2}[A-Z]{2}|[0-9]{2}[A-Z]{2}[0-9]{2})$/, example: "AA12BB" },
-
-  // France
-  { countryCode: "FR", countryName: "France", pattern: /^[A-Z]{2}[0-9]{3}[A-Z]{2}$/, example: "AB123CD" },
-
-  // Italy (same structure as FR)
-  { countryCode: "IT", countryName: "Italy", pattern: /^[A-Z]{2}[0-9]{3}[A-Z]{2}$/, example: "AB123CD" },
+  { countryCode: "PT", countryName: "Portugal", pattern: /^[A-Z]{2}[0-9]{2}[A-Z]{2}$/, example: "AA12BB" },
+  { countryCode: "PT", countryName: "Portugal", pattern: /^[0-9]{2}[A-Z]{2}[0-9]{2}$/, example: "12AA34" },
 
   // Spain
-  { countryCode: "ES", countryName: "Spain", pattern: /^[0-9]{4}[A-Z]{3}$/, example: "1234BCD" },
+  { countryCode: "ES", countryName: "Spain", pattern: /^[0-9]{4}[A-Z]{3}$/, example: "1234ABC" },
 
-  // Netherlands (common modern)
-  { countryCode: "NL", countryName: "Netherlands", pattern: /^(?:[A-Z]{2}[0-9]{2}[A-Z]{2}|[0-9]{2}[A-Z]{3}[0-9])$/, example: "AB12CD" },
+  // France (new format 2009+)
+  { countryCode: "FR", countryName: "France", pattern: /^[A-Z]{2}[0-9]{3}[A-Z]{2}$/, example: "AA123AA" },
 
-  // Germany (approx: 1-3 letters (city), 1-2 letters (series) optional, then 1-4 digits)
-  { countryCode: "DE", countryName: "Germany", pattern: /^[A-Z]{1,3}[A-Z]{0,2}[0-9]{1,4}$/, example: "B1234" },
+  // Germany
+  { countryCode: "DE", countryName: "Germany", pattern: /^[A-Z]{1,3}[A-Z]{1,2}[0-9]{1,4}$/, example: "BAB1234" },
+  { countryCode: "DE", countryName: "Germany", pattern: /^[A-Z]{1,3}[0-9]{1,4}$/, example: "B1234" },
+
+  // Italy
+  { countryCode: "IT", countryName: "Italy", pattern: /^[A-Z]{2}[0-9]{3}[A-Z]{2}$/, example: "AB123CD" },
+
+  // Netherlands
+  { countryCode: "NL", countryName: "Netherlands", pattern: /^[A-Z]{2}[0-9]{2}[A-Z]{2}$/, example: "AB12CD" },
+  { countryCode: "NL", countryName: "Netherlands", pattern: /^[0-9]{2}[A-Z]{3}[0-9]$/, example: "12ABC3" },
+  { countryCode: "NL", countryName: "Netherlands", pattern: /^[0-9][A-Z]{3}[0-9]{2}$/, example: "1ABC23" },
+
+  // Belgium
+  { countryCode: "BE", countryName: "Belgium", pattern: /^[0-9][A-Z]{3}[0-9]{3}$/, example: "1ABC123" },
+  { countryCode: "BE", countryName: "Belgium", pattern: /^[A-Z]{3}[0-9]{3}$/, example: "ABC123" },
+
+  // Switzerland
+  { countryCode: "CH", countryName: "Switzerland", pattern: /^[A-Z]{2}[0-9]{1,6}$/, example: "ZH123456" },
+
+  // Austria
+  { countryCode: "AT", countryName: "Austria", pattern: /^[A-Z]{1,2}[0-9]{1,5}[A-Z]{1,2}$/, example: "W12345A" },
+
+  // Sweden
+  { countryCode: "SE", countryName: "Sweden", pattern: /^[A-Z]{3}[0-9]{2}[A-Z0-9]$/, example: "ABC12D" },
+
+  // Norway
+  { countryCode: "NO", countryName: "Norway", pattern: /^[A-Z]{2}[0-9]{5}$/, example: "AB12345" },
+
+  // Denmark
+  { countryCode: "DK", countryName: "Denmark", pattern: /^[A-Z]{2}[0-9]{5}$/, example: "AB12345" },
+
+  // Poland
+  { countryCode: "PL", countryName: "Poland", pattern: /^[A-Z]{2,3}[A-Z0-9]{4,5}$/, example: "WA12345" },
 ];
-
-// Legacy dict format for backwards compatibility
-const LICENSE_PLATE_PATTERNS: Record<string, RegExp> = {
-  UK: /^(?:[A-Z]{2}[0-9]{2}[A-Z]{3}|[A-Z][0-9]{1,3}[A-Z]{3}|[A-Z]{3}[0-9]{1,3}[A-Z])$/,
-  PT: /^(?:[A-Z]{2}[0-9]{2}[A-Z]{2}|[0-9]{2}[A-Z]{2}[0-9]{2})$/,
-  FR: /^[A-Z]{2}[0-9]{3}[A-Z]{2}$/,
-  DE: /^[A-Z]{1,3}[A-Z]{0,2}[0-9]{1,4}$/,
-  ES: /^[0-9]{4}[A-Z]{3}$/,
-  IT: /^[A-Z]{2}[0-9]{3}[A-Z]{2}$/,
-  NL: /^(?:[A-Z]{2}[0-9]{2}[A-Z]{2}|[0-9]{2}[A-Z]{3}[0-9])$/,
-};
 
 /**
  * Normalize a license plate:
@@ -162,13 +180,21 @@ export function getLicensePlateError(plate: string): string | null {
 
 // Test plates for reference
 export const TEST_PLATES = {
-  UK: "AB12CDE",
-  PT: "AA12BB",
-  FR: "AB123CD",
-  DE: "B1234",
-  ES: "1234BCD",
+  GB: "AB12CDE",
+  IE: "12D12345",
+  PT: "12AA34",
+  FR: "AA123AA",
+  DE: "BAB1234",
+  ES: "1234ABC",
   IT: "AB123CD",
   NL: "AB12CD",
+  BE: "1ABC123",
+  CH: "ZH123456",
+  AT: "W12345A",
+  SE: "ABC12D",
+  NO: "AB12345",
+  DK: "AB12345",
+  PL: "WA12345",
 } as const;
 
 // Export PLATE_RULES for external use

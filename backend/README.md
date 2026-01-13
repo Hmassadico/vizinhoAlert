@@ -197,16 +197,16 @@ if (pushToken) {
 
 ## Rate Limits
 
-Built-in rate limiting protects against brute-force attacks:
+Built-in rate limiting (slowapi) protects against brute-force attacks:
 
 | Endpoint | Limit | Protection |
 |----------|-------|------------|
-| Device Registration | 10/minute per IP | Prevent token farming |
-| Vehicle Registration | 20/minute per device | Prevent plate brute-forcing |
-| Alert Creation | 10/hour per device | Prevent spam alerts |
+| POST /api/v1/auth/register | 20/minute per IP | Prevent token farming |
+| POST /api/v1/vehicles | 10/minute per IP | Prevent plate brute-forcing |
+| POST /api/v1/alerts | 30/minute per IP | Prevent spam alerts |
 | General API | 60/minute per device | Standard protection |
 
-The rate limiter supports both slowapi (with Redis for multi-replica) and an in-memory fallback for single-instance deployments.
+Returns HTTP 429 with `Retry-After` header when limit exceeded.
 
 ## Environment Variables
 
@@ -224,19 +224,27 @@ The rate limiter supports both slowapi (with Redis for multi-replica) and an in-
 
 ## License Plate Validation
 
-VizinhoAlert validates license plates for UK and major EU countries before registration.
+VizinhoAlert validates license plates for GB, Ireland, and major EU countries before registration.
 
 ### Supported Formats
 
-| Country | Format | Example |
-|---------|--------|---------|
-| 🇬🇧 UK | AA12AAA | AB12CDE |
-| 🇵🇹 Portugal | AA12BB | AA12BB |
-| 🇫🇷 France | AB123CD | AB123CD |
-| 🇩🇪 Germany | B1234 | B1234 |
-| 🇪🇸 Spain | 1234BCD | 1234BCD |
-| 🇮🇹 Italy | AB123CD | AB123CD |
-| 🇳🇱 Netherlands | AB12CD | AB12CD |
+| Country | Code | Format | Example |
+|---------|------|--------|---------|
+| 🇬🇧 Great Britain | GB | AA12AAA | AB12CDE |
+| 🇮🇪 Ireland | IE | 12D12345 | 12D12345 |
+| 🇵🇹 Portugal | PT | 12AA34 | 12AA34 |
+| 🇪🇸 Spain | ES | 1234ABC | 1234ABC |
+| 🇫🇷 France | FR | AA123AA | AA123AA |
+| 🇩🇪 Germany | DE | B-AB1234 | BAB1234 |
+| 🇮🇹 Italy | IT | AB123CD | AB123CD |
+| 🇳🇱 Netherlands | NL | AB12CD | AB12CD |
+| 🇧🇪 Belgium | BE | 1ABC123 | 1ABC123 |
+| 🇨🇭 Switzerland | CH | ZH123456 | ZH123456 |
+| 🇦🇹 Austria | AT | W12345A | W12345A |
+| 🇸🇪 Sweden | SE | ABC12D | ABC12D |
+| 🇳🇴 Norway | NO | AB12345 | AB12345 |
+| 🇩🇰 Denmark | DK | AB12345 | AB12345 |
+| 🇵🇱 Poland | PL | WA12345 | WA12345 |
 
 ### Normalization
 

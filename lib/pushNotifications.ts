@@ -1,5 +1,4 @@
 import { Platform } from "react-native";
-import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 
@@ -9,20 +8,18 @@ import {
   setPushTokenRegistered,
 } from "@/lib/api";
 
-// Configure notification handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
 /**
- * Check if we're running in Expo Go (which has push notification limitations)
+ * Check if we're running in Expo Go (which has push notification limitations in SDK 53+)
  */
 function isExpoGo(): boolean {
   return Constants.appOwnership === "expo";
+}
+
+/**
+ * Lazy-load expo-notifications to avoid module-level import issues in Expo Go
+ */
+async function getNotificationsModule() {
+  return await import("expo-notifications");
 }
 
 async function getExpoPushToken(): Promise<string | null> {
@@ -32,13 +29,16 @@ async function getExpoPushToken(): Promise<string | null> {
     return null;
   }
 
-  // Gracefully handle Expo Go limitations
+  // Gracefully handle Expo Go limitations (SDK 53+ removed remote push from Expo Go)
   if (isExpoGo()) {
-    console.log("[VizinhoAlert] Push notifications are limited in Expo Go. Use a development build for full functionality.");
+    console.log("[VizinhoAlert] Push notifications are limited in Expo Go (SDK 53+). Use a development build for full functionality.");
     return null;
   }
 
   try {
+    // Lazy import to avoid crashes in Expo Go
+    const Notifications = await getNotificationsModule();
+    
     // Try to get projectId from multiple sources
     const projectId =
       (Constants as any).easConfig?.projectId ??
@@ -68,9 +68,13 @@ export async function setupPushNotifications(): Promise<void> {
     return;
   }
 
-  // Skip in Expo Go to avoid crashes
+  // Skip in Expo Go to avoid crashes (SDK 53+ limitation)
   if (isExpoGo()) {
-    console.log("[VizinhoAlert] Skipping push setup in Expo Go");
+    if (Platform.OS === "android") {
+      console.warn("[VizinhoAlert] Remote push notifications are not available in Expo Go on Android (SDK 53+). Create a development build for push functionality.");
+    } else {
+      console.log("[VizinhoAlert] Skipping push setup in Expo Go");
+    }
     return;
   }
 
@@ -81,6 +85,18 @@ export async function setupPushNotifications(): Promise<void> {
   }
 
   try {
+    // Lazy import notifications module
+    const Notifications = await getNotificationsModule();
+    
+    // Configure notification handler
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+
     // Request permission
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;

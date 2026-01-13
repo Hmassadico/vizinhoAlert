@@ -1,9 +1,9 @@
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator, model_validator
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
 
-from app.core.license_plate import validate_plate_or_raise, normalize_license_plate, detect_plate_country
+from app.core.plate_validation import validate_license_plate, normalize_plate, detect_country
 
 
 class VehicleRegisterRequest(BaseModel):
@@ -12,7 +12,7 @@ class VehicleRegisterRequest(BaseModel):
         ..., 
         min_length=4, 
         max_length=20, 
-        description="Vehicle license plate (UK or EU format)"
+        description="Vehicle license plate (GB, IE, or EU format)"
     )
     nickname: Optional[str] = Field(None, max_length=50)
     
@@ -24,7 +24,7 @@ class VehicleRegisterRequest(BaseModel):
     @classmethod
     def validate_and_normalize_plate(cls, v: str) -> str:
         """Validate and normalize the license plate"""
-        plate_norm, _, _ = validate_plate_or_raise(v)
+        plate_norm, _, _ = validate_license_plate(v)
         return plate_norm  # Return normalized plate
     
     @field_validator('nickname')
@@ -32,6 +32,14 @@ class VehicleRegisterRequest(BaseModel):
     def nickname_strip(cls, v: Optional[str]) -> Optional[str]:
         """Strip whitespace from nickname"""
         return v.strip() if v else v
+    
+    @model_validator(mode='after')
+    def auto_detect_country(self) -> 'VehicleRegisterRequest':
+        """Auto-fill detected country fields after validation"""
+        code, name = detect_country(self.vehicle_id)
+        self.detected_country_code = code
+        self.detected_country_name = name
+        return self
 
 
 class VehicleResponse(BaseModel):

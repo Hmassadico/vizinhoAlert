@@ -7,7 +7,7 @@ import uuid
 from app.core.database import get_db
 from app.core.security import hash_vehicle_id, verify_token
 from app.core.rate_limiter import limiter
-from app.core.license_plate import detect_plate_country, normalize_license_plate
+from app.core.plate_validation import detect_country, normalize_plate
 from app.models.vehicle import Vehicle
 from app.schemas.vehicle import (
     VehicleRegisterRequest,
@@ -21,7 +21,7 @@ router = APIRouter()
 
 
 @router.post("", response_model=VehicleResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("20/minute")  # Rate limit for brute-force protection
+@limiter.limit("10/minute")  # Rate limit for brute-force protection
 async def register_vehicle(
     request: Request,
     data: VehicleRegisterRequest,
@@ -30,17 +30,19 @@ async def register_vehicle(
 ):
     """
     Register a new vehicle.
-    Vehicle ID is hashed - original value is never stored.
-    License plate is validated and normalized before hashing.
+    
+    - License plate is validated against GB, IE, and EU formats
+    - Plate is normalized (uppercase, no spaces/dashes)
+    - Country is auto-detected from plate format
+    - Vehicle ID is hashed - original plate is NEVER stored
     """
     # Plate is already normalized by Pydantic validator
-    plate_norm = normalize_license_plate(data.vehicle_id)
+    plate_norm = normalize_plate(data.vehicle_id)
     vehicle_hash = hash_vehicle_id(plate_norm)
     
-    # Detect country from plate format
-    country = detect_plate_country(plate_norm)
-    country_code = country[0] if country else None
-    country_name = country[1] if country else None
+    # Get country from auto-detected fields (populated by model_validator)
+    country_code = data.detected_country_code
+    country_name = data.detected_country_name
     
     # Check if vehicle already registered
     result = await db.execute(
