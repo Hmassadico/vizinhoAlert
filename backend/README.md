@@ -197,7 +197,7 @@ if (pushToken) {
 
 ## Rate Limits
 
-Built-in rate limiting (slowapi) protects against brute-force attacks:
+Built-in rate limiting protects against brute-force attacks:
 
 | Endpoint | Limit | Protection |
 |----------|-------|------------|
@@ -206,7 +206,34 @@ Built-in rate limiting (slowapi) protects against brute-force attacks:
 | POST /api/v1/alerts | 30/minute per IP | Prevent spam alerts |
 | General API | 60/minute per device | Standard protection |
 
-Returns HTTP 429 with `Retry-After` header when limit exceeded.
+### Response Headers
+
+Rate-limited responses include:
+- `Retry-After`: Seconds to wait before retrying
+- `X-RateLimit-Limit`: Maximum requests allowed
+- `X-RateLimit-Remaining`: Requests remaining in window
+- `X-RateLimit-Reset`: Unix timestamp when limit resets
+
+### Configuration via Environment Variables
+
+```bash
+# Default rate limit (requests per window)
+RATE_LIMIT_DEFAULT=60
+
+# Default window in seconds
+RATE_LIMIT_WINDOW=60
+
+# Trust proxy headers (X-Forwarded-For, CF-Connecting-IP)
+TRUST_PROXY=true
+```
+
+Returns HTTP 429 with JSON body when limit exceeded:
+```json
+{
+  "detail": "Rate limit exceeded. Try again in 30 seconds.",
+  "retry_after": 30
+}
+```
 
 ## Environment Variables
 
@@ -228,23 +255,39 @@ VizinhoAlert validates license plates for GB, Ireland, and major EU countries be
 
 ### Supported Formats
 
-| Country | Code | Format | Example |
-|---------|------|--------|---------|
-| 🇬🇧 Great Britain | GB | AA12AAA | AB12CDE |
-| 🇮🇪 Ireland | IE | 12D12345 | 12D12345 |
-| 🇵🇹 Portugal | PT | 12AA34 | 12AA34 |
-| 🇪🇸 Spain | ES | 1234ABC | 1234ABC |
-| 🇫🇷 France | FR | AA123AA | AA123AA |
-| 🇩🇪 Germany | DE | B-AB1234 | BAB1234 |
-| 🇮🇹 Italy | IT | AB123CD | AB123CD |
-| 🇳🇱 Netherlands | NL | AB12CD | AB12CD |
-| 🇧🇪 Belgium | BE | 1ABC123 | 1ABC123 |
-| 🇨🇭 Switzerland | CH | ZH123456 | ZH123456 |
-| 🇦🇹 Austria | AT | W12345A | W12345A |
-| 🇸🇪 Sweden | SE | ABC12D | ABC12D |
-| 🇳🇴 Norway | NO | AB12345 | AB12345 |
-| 🇩🇰 Denmark | DK | AB12345 | AB12345 |
-| 🇵🇱 Poland | PL | WA12345 | WA12345 |
+| Country | Code | Format | Example | Input with separators |
+|---------|------|--------|---------|----------------------|
+| 🇬🇧 Great Britain | GB | AA12AAA | AB12CDE | `AB 12 CDE` or `AB-12-CDE` |
+| 🇮🇪 Ireland | IE | 12D12345 | 12D12345 | `12-D-12345` |
+| 🇵🇹 Portugal | PT | 12AA34 | 12AA34 | `12-AA-34` |
+| 🇪🇸 Spain | ES | 1234ABC | 1234ABC | `1234 ABC` |
+| 🇫🇷 France | FR | AA123AA | AA123AA | `AA-123-AA` |
+| 🇩🇪 Germany | DE | BAB1234 | BAB1234 | `B-AB 1234` |
+| 🇮🇹 Italy | IT | AB123CD | AB123CD | `AB 123 CD` |
+| 🇳🇱 Netherlands | NL | AB12CD | AB12CD | `AB-12-CD` |
+| 🇧🇪 Belgium | BE | 1ABC123 | 1ABC123 | `1-ABC-123` |
+| 🇨🇭 Switzerland | CH | ZH123456 | ZH123456 | `ZH 123456` |
+| 🇦🇹 Austria | AT | W12345A | W12345A | `W 12345 A` |
+| 🇸🇪 Sweden | SE | ABC12D | ABC12D | `ABC 12D` |
+| 🇳🇴 Norway | NO | AB12345 | AB12345 | `AB 12345` |
+| 🇩🇰 Denmark | DK | AB12345 | AB12345 | `AB 12345` |
+| 🇵🇱 Poland | PL | WA12345 | WA12345 | `WA 12345` |
+
+### Normalization
+
+All plates are automatically normalized before validation:
+- Converted to **UPPERCASE**
+- Whitespace **trimmed**
+- Spaces, dashes, dots, underscores **removed**
+
+Example: `"ab-12 cde"` → `"AB12CDE"`
+
+### Privacy
+
+**Raw license plates are NEVER stored.** Only a SHA-256 hash is saved:
+- Consistent hashing regardless of input format
+- One-way hash (cannot be reversed)
+- Privacy-first design
 
 ### Normalization
 
@@ -329,6 +372,115 @@ curl http://localhost:8000/api/v1/vehicles \
 **5. Health check:**
 ```bash
 curl http://localhost:8000/api/v1/health
+```
+
+**6. Create alert (test uppercase alert_type normalization):**
+```bash
+# Get QR token from a vehicle first
+QR_TOKEN=$(curl -s http://localhost:8000/api/v1/vehicles \
+  -H "Authorization: Bearer $TOKEN" | jq -r '.[0].qr_code_token')
+
+# Create alert with UPPERCASE alert_type (should be normalized to lowercase)
+curl -X POST http://localhost:8000/api/v1/alerts \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "vehicle_qr_token": "'$QR_TOKEN'",
+    "alert_type": "LIGHTS_ON",
+    "latitude": 51.5074,
+    "longitude": -0.1278
+  }'
+```
+
+Response (note: alert_type normalized to lowercase):
+```json
+{
+  "id": "...",
+  "alert_type": "lights_on",
+  "latitude": 51.5074,
+  "longitude": -0.1278,
+  "created_at": "...",
+  "expires_at": "..."
+}
+```
+
+**7. Test rate limiting (should return 429 after limit):**
+```bash
+# Hit the endpoint repeatedly to trigger rate limit
+for i in {1..25}; do
+  curl -s -o /dev/null -w "%{http_code}\n" \
+    -X POST http://localhost:8000/api/v1/auth/register \
+    -H "Content-Type: application/json" \
+    -d '{"device_id": "test-device-'$i'"}'
+done
+```
+
+Last requests should return `429` with:
+```json
+{
+  "detail": "Rate limit exceeded. Try again in X seconds.",
+  "retry_after": X
+}
+```
+
+## How to Verify Changes
+
+### 1. Alert Type Normalization
+```bash
+# Backend accepts both uppercase and lowercase
+curl -X POST https://api.vizinhoalert.eu/api/v1/alerts \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"vehicle_qr_token": "...", "alert_type": "LIGHTS_ON", "latitude": 51.5, "longitude": -0.1}'
+
+# Should work and return alert_type: "lights_on"
+```
+
+### 2. License Plate Validation
+```bash
+# Valid GB plate (with separators)
+curl -X POST https://api.vizinhoalert.eu/api/v1/vehicles \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"vehicle_id": "AB 12 CDE"}'
+# Response: country_code: "GB"
+
+# Valid Portugal plate
+curl -X POST https://api.vizinhoalert.eu/api/v1/vehicles \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"vehicle_id": "12-AA-34"}'
+# Response: country_code: "PT"
+
+# Invalid plate (should return 422)
+curl -X POST https://api.vizinhoalert.eu/api/v1/vehicles \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"vehicle_id": "INVALID"}'
+# Response: 422 with validation error
+```
+
+### 3. Web HTTPS Enforcement
+Open browser console on web and check:
+- No "Mixed content" warnings
+- API_BASE_URL uses `https://`
+
+### 4. Rate Limiting
+```bash
+# Rapidly call endpoint to trigger limit
+for i in {1..30}; do
+  curl -s -o /dev/null -w "%{http_code} " \
+    -X POST https://api.vizinhoalert.eu/api/v1/auth/register \
+    -H "Content-Type: application/json" \
+    -d '{"device_id": "rate-test-'$RANDOM'"}'
+done
+# Should see 429 responses after ~20 requests
+```
+
+### 5. Run Backend Tests
+```bash
+cd backend
+pytest tests/test_license_plate.py -v
 ```
 
 ## License

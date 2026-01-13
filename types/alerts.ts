@@ -1,18 +1,22 @@
-// Alert types matching backend: lights_on, window_open, alarm_triggered, parking_issue, damage_spotted, towing_risk, obstruction, general
-export type AlertType =
-  | "lights_on"
-  | "window_open"
-  | "alarm_triggered"
-  | "parking_issue"
-  | "damage_spotted"
-  | "towing_risk"
-  | "obstruction"
-  | "general";
+// Re-export alert type constants from single source of truth
+export {
+  AlertType,
+  ALERT_TYPES,
+  ALERT_TYPE_CONFIGS,
+  AlertTypeConfig,
+  normalizeAlertType,
+  isAlertType,
+  getAlertTypeConfig,
+} from "@/lib/constants/alertTypes";
+
+// Backward compatibility alias
+import { ALERT_TYPE_CONFIGS as _CONFIGS } from "@/lib/constants/alertTypes";
+export const ALERT_TYPES_CONFIG = _CONFIGS;
 
 // Alert from backend API
 export interface Alert {
   id: string;
-  alert_type: AlertType;
+  alert_type: string;
   latitude: number;
   longitude: number;
   created_at: string;
@@ -27,6 +31,9 @@ export interface Vehicle {
   nickname: string | null;
   is_active: boolean;
   created_at: string;
+  // Auto-detected country from plate format
+  country_code?: string | null;
+  country_name?: string | null;
 }
 
 // QR code response from backend
@@ -35,24 +42,6 @@ export interface VehicleQR {
   qr_code_data: string;
   vehicle_id: string;
 }
-
-export interface AlertTypeConfig {
-  type: AlertType;
-  label: string;
-  icon: string;
-  color: "warning" | "info" | "urgent";
-}
-
-export const ALERT_TYPES: AlertTypeConfig[] = [
-  { type: "lights_on", label: "Lights On", icon: "lightbulb", color: "warning" },
-  { type: "window_open", label: "Window Open", icon: "square", color: "info" },
-  { type: "alarm_triggered", label: "Alarm Triggered", icon: "siren", color: "urgent" },
-  { type: "parking_issue", label: "Parking Issue", icon: "parking-circle", color: "warning" },
-  { type: "damage_spotted", label: "Damage Spotted", icon: "alert-triangle", color: "urgent" },
-  { type: "towing_risk", label: "Towing Risk", icon: "truck", color: "urgent" },
-  { type: "obstruction", label: "Obstruction", icon: "ban", color: "warning" },
-  { type: "general", label: "General Alert", icon: "bell", color: "info" },
-];
 
 export const ALERT_EXPIRY_DAYS = 30;
 export const DEFAULT_RADIUS_KM = 2;

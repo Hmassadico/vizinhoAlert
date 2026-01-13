@@ -1,20 +1,33 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import * as Crypto from "expo-crypto";
-import { Alert, AlertType, Vehicle, VehicleQR } from "@/types/alerts";
+import { Alert, Vehicle, VehicleQR } from "@/types/alerts";
+import { AlertType, normalizeAlertType } from "@/lib/constants/alertTypes";
 
 // Centralized API base URL configuration
 // IMPORTANT: Always use HTTPS in production via https://api.vizinhoalert.eu
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://api.vizinhoalert.eu/api/v1";
+const DEFAULT_API_URL = "https://api.vizinhoalert.eu/api/v1";
 
-// Verify HTTPS is being used in production
-if (Platform.OS === "web" && API_BASE_URL.startsWith("http://")) {
-  console.warn(
-    "[VizinhoAlert] Mixed content warning: API is using HTTP but web requires HTTPS. " +
-    "Set EXPO_PUBLIC_API_BASE_URL to use https://api.vizinhoalert.eu/api/v1"
-  );
+// Get API base URL with HTTPS enforcement for web
+function getApiBaseUrl(): string {
+  let url = process.env.EXPO_PUBLIC_API_BASE_URL ?? DEFAULT_API_URL;
+  
+  // Enforce HTTPS on web to prevent mixed content errors
+  if (Platform.OS === "web" && url.startsWith("http://")) {
+    console.warn(
+      "[VizinhoAlert] Mixed content warning: API URL uses HTTP but web requires HTTPS. " +
+      "Forcing HTTPS. Set EXPO_PUBLIC_API_BASE_URL to use https://api.vizinhoalert.eu/api/v1"
+    );
+    url = url.replace("http://", "https://");
+  }
+  
+  return url;
 }
+
+export const API_BASE_URL = getApiBaseUrl();
+
+// Development mode check
+const IS_DEV = __DEV__ ?? process.env.NODE_ENV === "development";
 
 const DEVICE_ID_KEY = "vizinhoalert_device_id";
 const JWT_TOKEN_KEY = "@vizinhoalert:jwt_token";
@@ -176,23 +189,44 @@ export async function fetchMyAlerts(): Promise<Alert[]> {
 
 export async function createAlert(
   vehicleQrToken: string,
-  alertType: AlertType,
+  alertType: AlertType | string,
   latitude: number,
   longitude: number
 ): Promise<Alert> {
+  // CRITICAL: Normalize alert type to lowercase to match Postgres enum
+  // This handles uppercase values like "LIGHTS_ON" -> "lights_on"
+  const normalizedAlertType = normalizeAlertType(alertType);
+  
+  const payload = {
+    vehicle_qr_token: vehicleQrToken,
+    alert_type: normalizedAlertType,
+    latitude,
+    longitude,
+  };
+  
+  // Log payload in dev mode (without sensitive data)
+  if (IS_DEV) {
+    console.log("[VizinhoAlert] Creating alert:", {
+      ...payload,
+      vehicle_qr_token: `${vehicleQrToken.slice(0, 8)}...`,
+    });
+  }
+
   const response = await authFetch("/alerts", {
     method: "POST",
-    body: JSON.stringify({
-      vehicle_qr_token: vehicleQrToken,
-      alert_type: alertType,
-      latitude,
-      longitude,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Failed to create alert: ${response.status}`);
+    const detail = error.detail || `Failed to create alert: ${response.status}`;
+    
+    // Enhanced error message with server detail
+    if (IS_DEV) {
+      console.error("[VizinhoAlert] Alert creation failed:", { status: response.status, detail, payload });
+    }
+    
+    throw new Error(detail);
   }
 
   return response.json();

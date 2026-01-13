@@ -54,6 +54,9 @@ async def create_alert(
             detail="Cannot create alert for your own vehicle"
         )
     
+    # Normalize alert_type to lowercase (defense in depth - Pydantic validator already does this)
+    alert_type_normalized = data.alert_type.value if hasattr(data.alert_type, 'value') else str(data.alert_type).lower()
+    
     # Create alert - use sender_device_id to match Postgres schema
     alert = Alert(
         sender_device_id=device_id,

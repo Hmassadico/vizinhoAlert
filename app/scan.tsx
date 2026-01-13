@@ -6,7 +6,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
 import { X, Camera } from "lucide-react-native";
 
-import { AlertType, ALERT_TYPES } from "@/types/alerts";
+import { AlertType } from "@/lib/constants/alertTypes";
 import { createAlert } from "@/lib/api";
 import { AlertTypeSelectorModal } from "@/components/AlertTypeSelectorModal";
 import { BroadcastSuccessModal } from "@/components/BroadcastSuccessModal";

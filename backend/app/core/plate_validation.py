@@ -156,3 +156,24 @@ def is_valid_plate(plate: str) -> bool:
     """Simple boolean check if plate is valid for any supported country."""
     code, _ = detect_country(plate)
     return code is not None
+
+
+def validate_plate_or_raise(raw: str) -> dict:
+    """
+    Validate plate and return details as dict.
+    
+    Args:
+        raw: Raw license plate string
+        
+    Returns:
+        dict with normalized_plate, detected_country_code, detected_country_name
+        
+    Raises:
+        ValueError: If plate format is invalid
+    """
+    plate_norm, code, name = validate_license_plate(raw)
+    return {
+        "normalized_plate": plate_norm,
+        "detected_country_code": code,
+        "detected_country_name": name,
+    }

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, Modal, ScrollView } from "react-native";
 import { X } from "lucide-react-native";
-import { AlertType, ALERT_TYPES } from "@/types/alerts";
+import { AlertType, ALERT_TYPE_CONFIGS } from "@/lib/constants/alertTypes";
 import { AlertIcon } from "@/components/AlertIcon";
 
 interface AlertTypeSelectorModalProps {
@@ -64,7 +64,7 @@ export function AlertTypeSelectorModal({
               justifyContent: "space-between",
             }}
           >
-            {ALERT_TYPES.map((alertType) => (
+            {ALERT_TYPE_CONFIGS.map((alertType) => (
               <Pressable
                 key={alertType.type}
                 onPress={() => onSelectType(alertType.type)}

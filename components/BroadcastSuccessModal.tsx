@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, Modal } from "react-native";
 import { CheckCircle } from "lucide-react-native";
-import { AlertType, ALERT_TYPES } from "@/types/alerts";
+import { AlertType, ALERT_TYPE_CONFIGS } from "@/lib/constants/alertTypes";
 
 interface BroadcastSuccessModalProps {
   visible: boolean;
@@ -14,7 +14,7 @@ export function BroadcastSuccessModal({
   onClose,
   alertType,
 }: BroadcastSuccessModalProps) {
-  const config = alertType ? ALERT_TYPES.find((t) => t.type === alertType) : null;
+  const config = alertType ? ALERT_TYPE_CONFIGS.find((t) => t.type === alertType) : null;
 
   return (
     <Modal

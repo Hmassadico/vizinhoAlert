@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import BaseModel, Field, field_serializer, field_validator
 from typing import List, Optional
 from datetime import datetime
 from uuid import UUID
@@ -12,6 +12,17 @@ class AlertCreateRequest(BaseModel):
     alert_type: AlertType
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
+    
+    @field_validator("alert_type", mode="before")
+    @classmethod
+    def normalize_alert_type(cls, v):
+        """
+        Normalize alert type to lowercase to match Postgres enum.
+        Handles uppercase values like 'LIGHTS_ON' -> 'lights_on'
+        """
+        if isinstance(v, str):
+            return v.strip().lower()
+        return v
 
 
 class AlertResponse(BaseModel):

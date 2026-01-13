@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text } from "react-native";
-import { Alert, ALERT_TYPES } from "@/types/alerts";
+import { Alert } from "@/types/alerts";
+import { ALERT_TYPE_CONFIGS, normalizeAlertType } from "@/lib/constants/alertTypes";
 import { AlertIcon } from "@/components/AlertIcon";
 import { formatTimeAgo, formatCountdown } from "@/lib/storage";
 
@@ -21,7 +22,9 @@ const borderColorMap = {
 };
 
 export function AlertCard({ alert }: AlertCardProps) {
-  const config = ALERT_TYPES.find((t) => t.type === alert.alert_type);
+  // Normalize the alert type to handle both uppercase and lowercase from backend
+  const normalizedType = normalizeAlertType(alert.alert_type);
+  const config = ALERT_TYPE_CONFIGS.find((t) => t.type === normalizedType);
   if (!config) return null;
 
   const color = colorMap[config.color];
